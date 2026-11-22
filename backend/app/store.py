@@ -4,9 +4,18 @@
 """
 from __future__ import annotations
 
+import threading
 from typing import Any
 
-from app.seed import SEED_ROWS
+from app.seed import AUDIT_SAMPLE_SEED, SEED_ROWS
+
+# 跨报告整改链路的辅助表：不作为独立业务模块出现在概览和模块清单里。
+AUX_TABLES = (
+    "quality_audit_samples",   # 质量审计关系样本（跨报告归并的最小单元）
+    "quality_audit_batches",   # 整改批次证据
+    "govern_rectify_items",    # 治理待办整改项（依证据分批领取）
+    "rectify_receipts",        # 修正回执核销记录（幂等键：回执编号）
+)
 
 
 class Store:
@@ -14,9 +23,14 @@ class Store:
         self._tables: dict[str, list[dict[str, Any]]] = {
             name: [dict(row) for row in rows] for name, rows in SEED_ROWS.items()
         }
+        self._tables["quality_audit_samples"] = [dict(row) for row in AUDIT_SAMPLE_SEED]
+        for name in AUX_TABLES:
+            self._tables.setdefault(name, [])
+        # 回执核销的互斥锁：并发交付同一回执时保证只核销一次。
+        self.lock = threading.RLock()
 
     def module_names(self) -> list[str]:
-        return sorted(self._tables)
+        return sorted(name for name in self._tables if name not in AUX_TABLES)
 
     def rows(self, module: str) -> list[dict[str, Any]]:
         return self._tables.setdefault(module, [])

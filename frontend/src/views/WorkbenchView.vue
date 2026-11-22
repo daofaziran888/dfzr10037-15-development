@@ -86,6 +86,9 @@
       </form>
     </div>
 
+    <AuditRectifyPanel v-if="meta.key === 'quality_audit'" />
+    <GovernRectifyPanel v-else-if="meta.key === 'govern_dash'" />
+
     <footer class="page-foot">
       <span>共 {{ total }} 条{{ meta.name }}记录</span>
       <span v-if="errorMessage" class="error-text">{{ errorMessage }}</span>
@@ -104,6 +107,8 @@ import {
   runAction as applyAction,
 } from '@/api/backend-service'
 import type { EntryRow } from '@/data/types'
+import AuditRectifyPanel from '@/views/rectify/AuditRectifyPanel.vue'
+import GovernRectifyPanel from '@/views/rectify/GovernRectifyPanel.vue'
 
 const props = defineProps<{ moduleKey: string }>()
 const meta = moduleMeta(props.moduleKey)

@@ -81,5 +81,28 @@ npm run dev
 - 列表接口统一返回 `{ items, total, page, size }`，动作接口统一返回 `{ ok, message }`。
 - 状态流转只允许在 `app/services` 里改，路由层不做业务判断。
 
+## 跨报告合并重复发现（质量审计 → 治理待办）
+
+质量审计支持把多份报告里的关系样本归并成整改批次证据，并同步治理待办分批领取、按回执核销：
+
+1. **关系样本池**：`GET /api/quality_audit/samples` 列出各报告的关系样本
+   （报告编号、边号、错误类型、图代、抽样口径）。同一设备边 R7 可能在
+   QUAL-0001（全量扫描）记为断链、在 QUAL-0002（抽样复核）记为误连。
+2. **归并批次证据**：`POST /api/quality_audit/batches/merge`，body
+   `{"样本编号": [...], "处理人": "..."}`。只归并显式选中的样本——边号相同但
+   未选中的样本（如未受影响图代）不会划入整改；冲突判断允许共存于同一批次。
+3. **整组派工**：`POST /api/quality_audit/batches/{批次编号}/dispatch`，
+   同步治理待办，按错误类型生成可分批领取的整改项；批次详情
+   `GET /api/quality_audit/batches/{批次编号}` 可回看每个样本的原报告与抽样依据。
+4. **治理领取**：`GET /api/govern_dash/rectify-items` 查看整改项，
+   `POST /api/govern_dash/rectify-items/{项编号}/claim` 领取。
+5. **修正回执**：`POST /api/govern_dash/rectify-receipts`，body
+   `{"回执编号", "边号", "错误类型": [...], "图代"?, "处理人", "说明"?}`。
+   回执编号是幂等键：并发/重复交付只核销一次；核销只落在回执实际处理的
+   错误类型（及指定图代）上，响应回传实际核销所用的报告样本与剩余待整改项。
+   `GET /api/govern_dash/rectify-receipts` 查看回执台账。
+
+验收脚本（需先启动后端，全新进程）：`.venv/bin/python tests/verify_rectify_flow.py`
+
 领域：数据工程
 子方向：数据分析与数据应用
